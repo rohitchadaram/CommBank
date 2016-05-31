@@ -8,7 +8,14 @@ import org.apache.spark.sql.functions._
   */
 class MakeEnvironmentModel {
 
+  /******* This Program implements the functionality for the Output Report ******/
+
   def Environmentmodel(Atmosphere:DataFrame, Elevation:DataFrame, Geography:DataFrame, Oceangraphy:DataFrame) : DataFrame = {
+
+    /* We build a single DataFrame joining all the four dataframes generated from the load method so that we can define
+    small Logics to derive the Conditions at the Weather Stations using the temperature,Pressure and the humidity values
+     */
+
 
      val Geographyelevation = Geography.join(Elevation,Geography("GPS")=== Elevation("GPS"))
        .select(Geography("GPS"),Geography("Station"),Elevation("Altitude"))
@@ -19,6 +26,8 @@ class MakeEnvironmentModel {
      val GeographyelevationAtmosphereOceanogrpahy = GeographyelevationAtmosphere.join(Oceangraphy,GeographyelevationAtmosphere("GPS")=== Oceangraphy("GPS") and GeographyelevationAtmosphere("Time")=== Oceangraphy("Time"))
        .select(GeographyelevationAtmosphere("GPS"),GeographyelevationAtmosphere("Station"),GeographyelevationAtmosphere("Altitude"),GeographyelevationAtmosphere("Temperature"),
          GeographyelevationAtmosphere("Pressure"),GeographyelevationAtmosphere("Time"),Oceangraphy("Humidity"))
+
+    // Deriving the Conditions Columns by checking the Temperature, Humidity and Pressure to define if it is Sunny,Raining or Snowing
 
      val GenerateConditions = GeographyelevationAtmosphereOceanogrpahy.select(GeographyelevationAtmosphereOceanogrpahy("Station"),GeographyelevationAtmosphereOceanogrpahy("GPS"),GeographyelevationAtmosphereOceanogrpahy("Time"),
      expr("case when (Temperature<=15 and Humidity>=90 and Pressure>=1000) then 'Rainy' else 'Sunny' end as Conditions"),GeographyelevationAtmosphereOceanogrpahy("Temperature"),GeographyelevationAtmosphereOceanogrpahy("Pressure"),
@@ -31,8 +40,11 @@ class MakeEnvironmentModel {
 
   }
 
+  /* Rebuilding the Output Weather Report File as the Spark Dataframe output write builds a directory with part-00000 files depending on
+     the number of partitions so repartioning it to a single partition and deleting the directory and generating a single output text file
+   */
 
-  def saveDfToCsv(df: DataFrame, txtOutput: String,
+  def saveDfToTxt(df: DataFrame, txtOutput: String,
                   sep: String, header: Boolean ): Unit = {
 
     val tmpDir = "src/main/resources/WeatherReport"
